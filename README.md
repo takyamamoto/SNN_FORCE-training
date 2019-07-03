@@ -4,7 +4,6 @@ Paper : W. Nicola & C. Clopath. **Supervised learning in spiking neural networks
 Original code (Matlab) : [ModelDB(190565)](https://senselab.med.yale.edu/modeldb/ShowModel.cshtml?model=190565&file=/NicolaClopath2017/CODE%20FOR%20SUPPLEMENTARY%20OSCILLATOR%20PANEL/LIF%20MODEL%2010/#tabs-1)
 
 ## Requirement
-You must use a GPU to train.
 - Python >=3.5
 - numpy
 - matplotlib
