@@ -83,9 +83,11 @@ for i in tqdm(range(nt)):
  
     # Code if the rise time is 0, and if the rise time is positive 
     if tr == 0:  
+        # synapse for single exponential 
         IPSC = IPSC*math.exp(-dt/td) + JD*(len_idx>0)/td
         r = r[:,0]*math.exp(-dt/td) + (v>=vpeak)/td
     else:
+        # synapse for double exponential
         IPSC = IPSC*math.exp(-dt/tr) + h*dt        
         h = h*math.exp(-dt/td) + JD*(len_idx>0)/(tr*td) #Integrate the current        
         r = r[:,0]*math.exp(-dt/tr) + hr*dt 
