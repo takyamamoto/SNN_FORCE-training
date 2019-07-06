@@ -97,12 +97,12 @@ for i in tqdm(range(nt)):
     r = np.expand_dims(r,1)
 
     # Implement RLMS with the FORCE method 
-    z = BPhi.T @ r #approximant 線形結合によるデコード
+    z = BPhi.T @ r #approximant
     err = z - zx[i] #error 
 
     # RLMS 
     if i % step == 1:
-        if i > imin: #iminを超えると学習開始
+        if i > imin:
             if i < icrit:
                 cd = (Pinv @ r)
                 BPhi = BPhi - (cd @ err.T)
@@ -133,7 +133,8 @@ for j in range(5):
 plt.title('Pre-Learning')
 plt.xlabel('Time (ms)')
 plt.ylabel('Neuron Index') 
-plt.show()
+plt.savefig("Iz_pre.png")
+#plt.show()
 
 plt.figure(figsize=(6, 6))
 for j in range(5):
@@ -141,16 +142,18 @@ for j in range(5):
 plt.title('Post Learning')
 plt.xlabel('Time (ms)')
 plt.ylabel('Neuron Index') 
-plt.show()
+plt.savefig("Iz_post.png")
+#plt.show()
 
-plt.figure(figsize=(10, 6))
+plt.figure(figsize=(12, 6))
 plt.plot(np.arange(nt)*dt, current)
 plt.plot(np.arange(nt)*dt, zx)
 plt.xlim(14000,15000)
 plt.title('Decoded output')
 plt.xlabel('Time (ms)')
 plt.ylabel('current') 
-plt.show()
+plt.savefig("Iz_post_out.png")
+#plt.show()
 
 Z = np.linalg.eig(OMEGA + np.expand_dims(E,1) @ np.expand_dims(BPhi,1).T)
 Z2 = np.linalg.eig(OMEGA)
@@ -161,4 +164,5 @@ plt.scatter(Z[0].real, Z[0].imag, c='k', s=5, label='Post-Learning')
 plt.legend()
 plt.xlabel('Real')
 plt.ylabel('Imaginary')
-plt.show()
+plt.savefig("Iz_weight_eigenvalues.png")
+#plt.show()

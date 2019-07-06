@@ -9,10 +9,12 @@ np.random.seed(seed=0)
 
 N = 2000  #Number of neurons 
 dt = 5e-5
-tref = 2e-3 #Refractory time constant in seconds 不応期
+tref = 2e-3 #Refractory time constant in seconds
 tm = 1e-2 #Membrane time constant 
 vreset = -65 #Voltage reset 
-vpeak = -40 #Voltage peak. 
+vthr = -40 #Voltage threshold
+vpeak = 30
+
 td = 2e-2
 tr = 2e-3
 
@@ -40,9 +42,8 @@ tspike = np.zeros((4*nt,2)) #Storage variable for spike times
 ns = 0 #Number of spikes, counts during simulation  
 z = np.zeros(k) #Initialize the approximant 
  
-v = vreset + np.random.rand(N)*(30-vreset) #Initialize neuronal voltage with random distribtuions
+v = vreset + np.random.rand(N)*(vpeak-vreset) #Initialize neuronal voltage with random distribtuions
 
-RECB = np.zeros((nt, 10)) #Storage matrix for the synaptic weights (a subset of them) 
 
 OMEGA = G*(np.random.randn(N,N))*(np.random.rand(N,N)<p)/(math.sqrt(N)*p) #The initial weight matrix with fixed random weights  
 BPhi = np.zeros(N) #The initial matrix that will be learned by FORCE method
@@ -55,12 +56,13 @@ for i in range(N):
 E = (2*np.random.rand(N)-1)*Q #n
 
 # arrays to save
+RECB = np.zeros((nt, 10)) #Storage matrix for the synaptic weights (a subset of them) 
 REC2 = np.zeros((nt,20))
 REC = np.zeros((nt,10))
 current = np.zeros(nt) #storage variable for output current/approximant 
 
 tlast = np.zeros(N) #This vector is used to set  the refractory times 
-BIAS = vpeak #Set the BIAS current, can help decrease/increase firing rates.  0 is fine.
+BIAS = vthr #Set the BIAS current, can help decrease/increase firing rates.  0 is fine.
 
 #################
 ## Simulation ###
@@ -70,7 +72,7 @@ for i in tqdm(range(nt)):
     dv = ((dt*i) > (tlast + tref))*(-v + I) / tm #Voltage equation with refractory period 
     v = v + dt*dv
     
-    index = np.where(v>=vpeak)[0] #Find the neurons that have spiked 
+    index = np.where(v>=vthr)[0] #Find the neurons that have spiked 
     
     # Store spike times, and get the weight matrix column sum of spikers 
     len_idx = len(index)
@@ -79,39 +81,39 @@ for i in tqdm(range(nt)):
         tspike[ns:ns+len_idx,:] = np.vstack((index, 0*index+dt*i)).T
         ns = ns + len_idx # total number of psikes so far
 
-    tlast = tlast + (dt*i - tlast)*(v>=vpeak) #Used to set the refractory period of LIF neurons 
+    tlast = tlast + (dt*i - tlast)*(v>=vthr) #Used to set the refractory period of LIF neurons 
  
     # Code if the rise time is 0, and if the rise time is positive 
     if tr == 0:  
         # synapse for single exponential 
         IPSC = IPSC*math.exp(-dt/td) + JD*(len_idx>0)/td
-        r = r[:,0]*math.exp(-dt/td) + (v>=vpeak)/td
+        r = r[:,0]*math.exp(-dt/td) + (v>=vthr)/td
     else:
         # synapse for double exponential
         IPSC = IPSC*math.exp(-dt/tr) + h*dt        
         h = h*math.exp(-dt/td) + JD*(len_idx>0)/(tr*td) #Integrate the current        
         r = r[:,0]*math.exp(-dt/tr) + hr*dt 
-        hr = hr*math.exp(-dt/td) + (v>=vpeak)/(tr*td)
+        hr = hr*math.exp(-dt/td) + (v>=vthr)/(tr*td)
     
-    r = np.expand_dims(r,1)
+    r = np.expand_dims(r,1) # (N,) -> (N, 1)
     
     # Implement RLMS with the FORCE method 
-    z = BPhi.T @ r #approximant 線形結合によるデコード
+    z = BPhi.T @ r #approximant 
     err = z - zx[i] #error 
 
     # RLMS 
     if i % step == 1:
-        if i > imin: #iminを超えると学習開始
+        if i > imin:
             if i < icrit:
                 cd = (Pinv @ r)
                 BPhi = BPhi - (cd @ err.T)
                 Pinv = Pinv - (cd @ cd.T) / (1.0 + r.T @ cd)
     
-    v = v + (30 - v)*(v>=vpeak) # 閾値を超えると30mvに
+    v = v + (vpeak - v)*(v>=vthr) # set peak voltage
     
     REC[i] = v[:10] #Record a random voltage 
     
-    v = v + (vreset - v)*(v>=vpeak) #reset with spike time interpolant implemented.
+    v = v + (vreset - v)*(v>=vthr) #reset with spike time interpolant implemented.
     
     current[i] = z
     RECB[i,:] = BPhi[:10]  
@@ -134,7 +136,8 @@ for j in range(5):
 plt.title('Pre-Learning')
 plt.xlabel('Time (s)')
 plt.ylabel('Neuron Index') 
-plt.show()
+plt.savefig("LIF_pre.png")
+#plt.show()
 
 plt.figure(figsize=(6, 6))
 for j in range(5):
@@ -142,16 +145,18 @@ for j in range(5):
 plt.title('Post Learning')
 plt.xlabel('Time (s)')
 plt.ylabel('Neuron Index') 
-plt.show()
+plt.savefig("LIF_post.png")
+#plt.show()
 
-plt.figure(figsize=(10, 6))
-plt.plot(np.arange(nt)*dt, current)
-plt.plot(np.arange(nt)*dt, zx)
-plt.xlim(10,15)
+plt.figure(figsize=(12, 6))
+plt.plot(np.arange(nt)*dt, current, label="Decoded output")
+plt.plot(np.arange(nt)*dt, zx, label="Target")
+plt.xlim(12,15)
 plt.title('Decoded output')
 plt.xlabel('Time (s)')
 plt.ylabel('current') 
-plt.show()
+plt.savefig("LIF_post_out.png")
+#plt.show()
 
 Z = np.linalg.eig(OMEGA + np.expand_dims(E,1) @ np.expand_dims(BPhi,1).T)
 Z2 = np.linalg.eig(OMEGA)
@@ -162,4 +167,5 @@ plt.scatter(Z[0].real, Z[0].imag, c='k', s=5, label='Post-Learning')
 plt.legend()
 plt.xlabel('Real')
 plt.ylabel('Imaginary')
-plt.show()
+plt.savefig("LIF_weight_eigenvalues.png")
+#plt.show()
